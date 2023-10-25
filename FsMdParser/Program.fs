@@ -2,7 +2,7 @@
 
 open FSharpPlus
     
-module FsMdParser =
+module Main =
     [<EntryPoint>]
     let main args =
         0

@@ -15,7 +15,16 @@ open System
 module FileIO =
     open System.IO
      
-    let ReadTextFile = File.ReadAllLinesAsync
+    let ReadTextFile path =
+        task {
+            try
+                let! ret = File.ReadAllLinesAsync path
+                return Ok ret
+            with
+                | :? FileNotFoundException      -> return Error "File not found"
+                | :? NotSupportedException      -> return Error "Invalid file format"
+                | :? Security.SecurityException -> return Error "Permission denied"
+        }
         
     let WriteTextFile path (content: string) =
         task {

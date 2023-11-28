@@ -1,8 +1,10 @@
 namespace FsMdParser.Logger
 
 type LogLevel =
-    | LDebug
-    | LInfo
-    | LWarn
-    | LError
-    | LFatal
+    | Error
+    | Warn
+    | Info
+    | Debug
+
+module Logger =
+    let getLogger = ()

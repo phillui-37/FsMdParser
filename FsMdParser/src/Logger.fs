@@ -5,9 +5,8 @@ open System.IO
 /// This Logger is used in IO env only
 /// To keep functions pure, seperate the execution environment yourself
 /// No monad will be provided, write your own state monad or writer monad instead of this if requrie 
-/// The logging will be implemented as PubSub in a seperate process
+/// The logging will be implemented by using MailboxProcessor
 
-/// TODO formatter?
 
 // enum
 type LogLevel =
@@ -23,17 +22,83 @@ type LogOutput =
     | Stream = 0x4
     | Other = 0x10
 
+// default TextWriter implementation
+module private DefaultWriters =
+    open System.Text
+    open System
+    open System.Threading.Tasks
+    
+    let private encoding = lazy ( new UnicodeEncoding(false, false) )
+
+    type StdOutWriter(formatProvider) =
+        inherit TextWriter(formatProvider)
+
+        override _.get_Encoding() = encoding.Value
+        override this.Close() = this.Dispose(true)
+        override _.Dispose(disposing) = base.Dispose(disposing)
+        override _.Write(c: char) = Console.Write c
+        override _.Write(s: string) = Console.Write s
+        override _.WriteLine(c: char) = Console.WriteLine c
+        override _.WriteLine(s: string) = Console.WriteLine s
+        override this.WriteAsync(c: char) =
+            this.Write(c)
+            Task.CompletedTask
+        override this.WriteAsync(s: string) =
+            this.Write(s)
+            Task.CompletedTask
+        override this.WriteLineAsync(c: char) =
+            this.WriteLine(c)
+            Task.CompletedTask
+        override this.WriteLineAsync(s: string) =
+            this.WriteLine(s)
+            Task.CompletedTask
+        override _.FlushAsync() = Task.CompletedTask
+        override _.ToString() = "StdOutWriter"
+
+    type StdErrWriter(formatProvider) =
+        inherit TextWriter(formatProvider)
+
+        let _out = Console.Error
+
+        override _.get_Encoding() = encoding.Value
+        override this.Close() = this.Dispose(true)
+        override _.Dispose(disposing) = base.Dispose(disposing)
+        override _.Write(c: char) = _out.Write c
+        override _.Write(s: string) = _out.Write s
+        override _.WriteLine(c: char) = _out.WriteLine c
+        override _.WriteLine(s: string) = _out.WriteLine s
+        override this.WriteAsync(c: char) =
+            this.Write(c)
+            Task.CompletedTask
+        override this.WriteAsync(s: string) =
+            this.Write(s)
+            Task.CompletedTask
+        override this.WriteLineAsync(c: char) =
+            this.WriteLine(c)
+            Task.CompletedTask
+        override this.WriteLineAsync(s: string) =
+            this.WriteLine(s)
+            Task.CompletedTask
+        override _.FlushAsync() = Task.CompletedTask
+        override _.ToString() = "StdErrWriter"
+
+    let GetStdOutWriter(): TextWriter = new StdOutWriter(null)
+
+    let GetStdErrWriter(): TextWriter = new StdErrWriter(null)
+
+    ()
+
 // Input
 type LogConfig =
     { logLevelMask: LogLevel
       criticalLogLevelList: LogLevel DList
       outputOptions: LogOutput DList
-      outputWriters: Option<PersistentHashMap<LogOutput, DList<LogLevel * StringWriter>>> }
+      outputWriters: Option<PersistentHashMap<LogOutput, DList<LogLevel * TextWriter>>> }
     static member Of(
         logLevelMask: LogLevel,
         criticalLogLevelList: LogLevel list,
         outputOptions: LogOutput list,
-        outputWriters: Map<LogOutput, List<LogLevel * StringWriter>> option
+        outputWriters: Map<LogOutput, List<LogLevel * TextWriter>> option
     ): LogConfig =
         { logLevelMask=logLevelMask;
           criticalLogLevelList=Seq.ofList criticalLogLevelList |> DList.ofSeq;
@@ -41,13 +106,20 @@ type LogConfig =
           outputWriters=outputWriters
                        |> Option.map (fun o ->
                             Map.toSeq o 
-                            |> Seq.map (fun o' -> (fst o', snd o' |> List.toSeq |> DList.ofSeq))
+                            |> Seq.map (fun o' -> (fst o', snd o' |> DList.ofSeq))
                             |> PersistentHashMap.ofSeq) }
     static member Default =
+        let _writers =
+            [|(LogOutput.Terminal, [|
+                (LogLevel.Debug, DefaultWriters.GetStdOutWriter());
+                (LogLevel.Info, DefaultWriters.GetStdOutWriter());
+                (LogLevel.Warn, DefaultWriters.GetStdOutWriter());
+                (LogLevel.Error, DefaultWriters.GetStdErrWriter());
+                (LogLevel.Fatal, DefaultWriters.GetStdErrWriter());|] |> DList.ofSeq )|]
         { logLevelMask=LogLevel.Info;
-          criticalLogLevelList=DList.empty.Add(LogLevel.Fatal).Add(LogLevel.Error);
-          outputOptions=DList.empty.Add(LogOutput.Terminal);
-          outputWriters= } // TODO terminal stderr and stdout
+          criticalLogLevelList=DList.empty.Cons(LogLevel.Fatal).Cons(LogLevel.Error);
+          outputOptions=DList.empty.Cons(LogOutput.Terminal);
+          outputWriters=PersistentHashMap.ofSeq _writers |> Some}
 
 // Output
 type ILogger = 

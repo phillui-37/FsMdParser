@@ -5,6 +5,7 @@
     <TargetFramework>net7.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="src/SimpleTools.fs" />
     <Compile Include="src\FileIO.fs" />
     <Compile Include="src/Logger.fs" />
     <Compile Include="src/ArgParse.fs" />

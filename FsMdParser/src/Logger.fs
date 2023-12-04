@@ -19,6 +19,15 @@ type LogLevel =
     | Info  = 3
     | Debug = 4
 
+module LogLevel =
+    let ToString = function
+        | LogLevel.Fatal -> "FATAL"
+        | LogLevel.Error -> "ERROR"
+        | LogLevel.Warn  -> "WARN"
+        | LogLevel.Info  -> "INFO"
+        | LogLevel.Debug -> "DEBUG"
+        | _              -> raise <| new InvalidDataException ""
+
 type LogOutput =
     | File     = 0x1
     | Terminal = 0x2
@@ -40,8 +49,11 @@ module private DefaultWriters =
 
     let private encoding = lazy (new UnicodeEncoding(false, false))
 
-    type StdOutWriter(formatProvider) =
-        inherit TextWriter(formatProvider)
+    type StdOutWriter() =
+        inherit TextWriter(null)
+
+        static let _instance = Lazy<StdOutWriter>.Create(fun () -> new StdOutWriter())
+        static member Of() = _instance.Value
 
         override _.get_Encoding() = encoding.Value
         override this.Close() = this.Dispose(true)
@@ -78,10 +90,14 @@ module private DefaultWriters =
         override _.FlushAsync() = Task.CompletedTask
         override _.ToString() = "StdOutWriter"
 
-    type StdErrWriter(formatProvider) =
-        inherit TextWriter(formatProvider)
+    type StdErrWriter() =
+        inherit TextWriter(null)
 
         let _out = Console.Error
+
+        static let _instance = Lazy<StdErrWriter>.Create(fun () -> new StdErrWriter())
+        static member Of() = _instance.Value
+
 
         override _.get_Encoding() = encoding.Value
         override this.Close() = this.Dispose(true)
@@ -118,9 +134,9 @@ module private DefaultWriters =
         override _.FlushAsync() = Task.CompletedTask
         override _.ToString() = "StdErrWriter"
 
-    let GetStdOutWriter () : TextWriter = new StdOutWriter(null)
+    let GetStdOutWriter () : TextWriter = StdOutWriter.Of()
 
-    let GetStdErrWriter () : TextWriter = new StdErrWriter(null)
+    let GetStdErrWriter () : TextWriter = StdErrWriter.Of()
 
     ()
 
@@ -170,11 +186,12 @@ type LogConfig =
 
 // Output
 type ILogger =
-    { Fatal: string -> unit
-      Error: string -> unit
-      Warn: string -> unit
-      Info: string -> unit
-      Debug: string -> unit }
+    { Fatal:  string -> unit;
+      Error:  string -> unit;
+      Warn:   string -> unit;
+      Info:   string -> unit;
+      Debug:  string -> unit;
+      IsBusy: unit -> bool }
 
 type LoggerState =
     struct
@@ -198,26 +215,37 @@ type LoggerState =
 module Logger =
     open System
     open System.Globalization
-    open System.Threading
+
+    // TODO should have one mailbox processor only to ensure sequential handling
+
+    let levelCheck (state: LoggerState) lv =
+        lv <= int state.logLevelMask
+        || DList.toSeq state.criticalLogLevelList
+           |> Seq.map int
+           |> Seq.tryFind (Funs.eq lv)
+           <> None
+
     // logging core
-    let private _logConsumer tag (logWriter: TextWriter) =
+    let private getLogConsumer state outputFlag (logWriterMap: LogOutputWriterMap) =
         MailboxProcessor<LogLevel * string>.Start(fun inbox ->
             let rec loop () =
                 async {
-                    let! msg = inbox.Receive()
-                    let now = DateTime.UtcNow.ToString(new CultureInfo("en-US"))
-                    let getMsg level log = $"[{level}]\t[{now} UTC] {log}"
+                    let! (level, msg) = inbox.Receive()
+                    let now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.CurrentCulture)
+                    
+                    PersistentHashMap.toSeq logWriterMap
+                    |> Seq.fold (fun _ (output, writerMap) ->
+                        if int output &&& int outputFlag <> 0 then
+                            DList.toSeq writerMap
+                            |> Seq.fold (fun _ (_level, writer) ->
+                                if levelCheck state <| int _level && _level = level then
+                                    $"[{LogLevel.ToString level}]\t[{now} UTC] {msg}"
+                                    |> writer.WriteLine
+                                ()
+                                )
+                                ())
+                        ()
 
-                    let log =
-                        match fst msg with
-                        | LogLevel.Fatal -> snd msg |> getMsg "FATAL"
-                        | LogLevel.Error -> snd msg |> getMsg "ERROR"
-                        | LogLevel.Warn  -> snd msg |> getMsg "WARN"
-                        | LogLevel.Info  -> snd msg |> getMsg "INFO"
-                        | LogLevel.Debug -> snd msg |> getMsg "DEBUG"
-                        | _              -> $"Unexpected log request received: {msg}"
-                    logWriter.WriteLine log
-                    // TODO add sleep to avoid queue stuck?
                     return! loop ()
                 }
 
@@ -225,42 +253,22 @@ module Logger =
 
     // pub log to message pipeline of different output
     let private LogHandler (state: LoggerState) =
-        let levelCheck lv =
-            lv <= int state.logLevelMask
-            || DList.toSeq state.criticalLogLevelList
-               |> Seq.map int
-               |> Seq.tryFind (Funs.eq lv)
-               <> None
+        let _writer =
+            state.writers
+            |> getLogConsumer state (PersistentHashMap.toSeq state.writers |> Seq.fold (fun acc (output, _) -> acc ||| int output) 0)
 
-        let consumers =
-            PersistentHashMap.toSeq state.writers
-            |> Seq.bind (fun (output, writerMap) ->
-                if int output &&& state.output = 0 then
-                    DList.empty
-                else
-                    DList.toSeq writerMap
-                    |> Seq.filter (fst >> int >> levelCheck)
-                    |> Seq.map (fun (level, writer) -> (level, _logConsumer writer)))
-            |> DList.ofSeq
+        let Logger = fun level log -> _writer.Post((level, log))    
+        let IsBusy() = _writer.CurrentQueueLength > 0
 
-        fun level log ->
-            if levelCheck <| int level then
-                DList.toSeq consumers
-                |> Seq.fold
-                    (fun _ (_level, writer) ->
-                        if _level = level then
-                            writer.Post((_level, log))
+        Logger, IsBusy
 
-                        ())
-                    ()
-
-
-    // TODO Reader
+    // TODO Reader Monad
     let GetLogger config : ILogger =
-        let handler = new LoggerState(config) |> LogHandler
+        let (handler, IsBusy) = new LoggerState(config) |> LogHandler
 
-        { Fatal = handler LogLevel.Fatal
-          Error = handler LogLevel.Error
-          Warn = handler LogLevel.Warn
-          Info = handler LogLevel.Info
-          Debug = handler LogLevel.Debug }
+        { Info   = handler LogLevel.Info
+          Debug  = handler LogLevel.Debug
+          Warn   = handler LogLevel.Warn
+          Error  = handler LogLevel.Error
+          Fatal  = handler LogLevel.Fatal
+          IsBusy = IsBusy }

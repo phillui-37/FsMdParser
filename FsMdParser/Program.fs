@@ -34,7 +34,7 @@ module Main =
                    Info  =logGuard _logger.Info;
                    Debug =logGuard _logger.Debug;
                    IsBusy=_logger.IsBusy };
-          status=ref Context.ContextComponentStatus.Idle }
+          status=status }
         
 
     let initContext() =
@@ -64,6 +64,7 @@ module Main =
         logger.Fatal "test15"
 
         Context.Close context
+        logger.Warn "Test after close"
         while context |> Context.IsClosed |> not do
             printfn "waiting"
             Thread.Sleep 50

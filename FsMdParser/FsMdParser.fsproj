@@ -5,12 +5,18 @@
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Common part -->
     <Compile Include="src/Constant.fs" />
     <Compile Include="src/SimpleTools.fs" />
     <Compile Include="src/Context.fs" />
     <Compile Include="src\FileIO.fs" />
     <Compile Include="src/Logger.fs" />
     <Compile Include="src/ArgParse.fs" />
+    
+    <!-- Parser part -->
+    <Compile Include="src/Parse/Lexer.fs" />
+    <Compile Include="src/Parse/Token.fs" />
+
     <Compile Include="Program.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -215,8 +215,7 @@ type LoggerState =
 module Logger =
     open System
     open System.Globalization
-
-    // TODO should have one mailbox processor only to ensure sequential handling
+    open FsMdParser
 
     let levelCheck (state: LoggerState) lv =
         lv <= int state.logLevelMask
@@ -232,18 +231,23 @@ module Logger =
                 async {
                     let! (level, msg) = inbox.Receive()
                     let now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.CurrentCulture)
+                    let color =
+                        match level with
+                        | LogLevel.Fatal -> TtyColor.RED
+                        | LogLevel.Error -> TtyColor.MAGENTA
+                        | LogLevel.Warn  -> TtyColor.YELLOW
+                        | _ -> TtyColor.WHITE
                     
                     PersistentHashMap.toSeq logWriterMap
-                    |> Seq.fold (fun _ (output, writerMap) ->
-                        if int output &&& int outputFlag <> 0 then
-                            DList.toSeq writerMap
-                            |> Seq.fold (fun _ (_level, writer) ->
-                                if levelCheck state <| int _level && _level = level then
-                                    $"[{LogLevel.ToString level}]\t[{now} UTC] {msg}"
-                                    |> writer.WriteLine
-                                ()
-                                )
-                                ())
+                    |> Seq.filter (fst >> int >> Funs.hasFlag (int outputFlag))
+                    |> Seq.fold (fun _ (_, writerMap) ->
+                        DList.toSeq writerMap
+                        |> Seq.filter (fst >> Funs.and'([|int >> levelCheck state; Funs.eq level|]))
+                        |> Seq.fold (fun _ (_, writer) ->
+                            $"{color}[{LogLevel.ToString level}]\t[{now} UTC] {msg}{TtyColor.RESET}"
+                            |> writer.WriteLine
+                            ())
+                            ())
                         ()
 
                     return! loop ()

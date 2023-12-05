@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <Compile Include="FileIO.test.fs" />
-    <Compile Include="ArgParse.test.fs"/>
+    <Compile Include="ArgParse.test.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
@@ -19,10 +19,10 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="FSUnit" Version="5.4.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.2" />
-    <PackageReference Include="NUnit" Version="3.13.3" />
-    <PackageReference Include="NUnit.Analyzers" Version="3.8.0">
+    <PackageReference Include="FSUnit" Version="5.6.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="3.10.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

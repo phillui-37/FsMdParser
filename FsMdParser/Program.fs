@@ -7,6 +7,7 @@
 module Main =
     open FsMdParser.Logger
     open FsMdParser.Context
+    open System
     open System.Threading
     
     type CtxLogger =
@@ -46,23 +47,7 @@ module Main =
     let main args =
         let context = initContext()
         let logger: ILogger = (Context.GetComponent Logger context).Get() :?> ILogger
-
-        logger.Debug "test1"
-        logger.Info "test2"
-        logger.Warn "test3"
-        logger.Error "test4"
-        logger.Fatal "test5"
-        logger.Debug "test6"
-        logger.Info "test7"
-        logger.Warn "test8"
-        logger.Error "test9"
-        logger.Fatal "test10"
-        logger.Debug "test11"
-        logger.Info "test12"
-        logger.Warn "test13"
-        logger.Error "test14"
-        logger.Fatal "test15"
-
+        
         Context.Close context
         logger.Warn "Test after close"
         while context |> Context.IsClosed |> not do

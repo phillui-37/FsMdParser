@@ -1,4 +1,4 @@
-namespace FsMdParser.SimpleTools
+namespace FsMdParser
 
 module Funs =
     let constant a _ = a

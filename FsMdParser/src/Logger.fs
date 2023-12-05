@@ -1,9 +1,8 @@
-namespace FsMdParser.Logger
+namespace FsMdParser
 
 open FSharpPlus
 open FSharpx.Collections
 open System.IO
-open FsMdParser.SimpleTools
 
 /// This Logger is used in IO env only
 /// To keep functions pure, seperate the execution environment yourself

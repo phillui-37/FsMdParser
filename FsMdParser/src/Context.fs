@@ -1,4 +1,4 @@
-namespace FsMdParser.Context
+namespace FsMdParser
 
 module Context =
     open FSharpx.Collections

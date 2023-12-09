@@ -2,8 +2,16 @@
 - [x] arg parser
   - supported by Argu
 - [x] Logging
+  - [ ] add argparse support
+  - [ ] add default file logging support
 - [ ] md parser core
+  - syntax ref
+    - [basic](https://www.markdownguide.org/basic-syntax/)
+    - [extended](https://www.markdownguide.org/extended-syntax/)
+    - [other](https://www.markdownguide.org/hacks/)
   - [ ] text -> token
   - [ ] token handler
   - [ ] token -> output
 - [ ] plugin handing
+- [ ] default config
+  - [ ] css as plugin

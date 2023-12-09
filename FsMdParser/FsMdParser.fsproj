@@ -14,8 +14,9 @@
     <Compile Include="src/ArgParse.fs" />
     
     <!-- Parser part -->
-    <Compile Include="src/Parse/Lexer.fs" />
     <Compile Include="src/Parse/Token.fs" />
+    <Compile Include="src/Parse/Err.fs" />
+    <Compile Include="src/Parse/Lexer.fs" />
 
     <Compile Include="Program.fs" />
   </ItemGroup>

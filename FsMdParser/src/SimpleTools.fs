@@ -1,5 +1,7 @@
 namespace FsMdParser
 
+open System.Runtime.CompilerServices
+
 module Funs =
     let constant a _ = a
 
@@ -33,3 +35,9 @@ module Funs =
 
     let and' predicates testee =
         predicates |> Seq.fold (fun acc predicate -> acc && predicate testee) true
+
+[<Extension>]
+type String =
+    [<Extension>]
+    static let (|Prefix|_|) (p: string) (s: string) =
+        if s.StartsWith(p) then Some(s.Substring(p.Length)) else None

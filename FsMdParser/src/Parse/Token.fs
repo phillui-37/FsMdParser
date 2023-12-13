@@ -24,11 +24,11 @@ type Text      = string
 type URL       = string
 type Alt       = string
 type Tag       = string
-type HeadingId = string
+type HeadingId = string // for anchor link
 
 type Heading =
     | Heading          of HeadingLevel * MDToken * HeadingId option
-    | MultiLineHeading of HeadingLevel * MDToken * HeadingId option // for =/- line, need to include previous row for handling, 2nd pass will convert to Heading
+    | MultiLineHeading of HeadingLevel * HeadingId option // for =/- line, need to include previous row for handling, 2nd pass will convert to Heading
 and Emphasis =
     | Bold   of MDToken
     | Italic of MDToken

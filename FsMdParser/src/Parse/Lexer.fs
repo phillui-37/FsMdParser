@@ -7,8 +7,17 @@ namespace FsMdParser.Parse
 // TODO text -> token
 // Result <|> Result (Ok/Fail)
 module Lexer =
-    open FSharpPlus
     open FsMdParser
+
+    let inline (<|>) (ra: Result<'a, ParseError>) (rb: Result<'a, ParseError>) =
+        match ra with
+        | Ok a -> Ok a
+        | Error _ -> rb
+
+    let get obj =
+        match obj with
+        | Ok x -> x
+        | Error e -> raise <| System.AccessViolationException "Should not reach this"
 
     let rec private ParseHeading row =
         match row with
@@ -18,13 +27,15 @@ module Lexer =
         | Prefix "#### " s -> Ok (H4, s)
         | Prefix "##### " s -> Ok (H5, s)
         | Prefix "###### " s -> Ok (H6, s)
+        | s when s.Replace("=", "").Length = 0 -> NeedPreviousLine None |> Error
+        | s when s.Replace("-", "").Length = 0 -> NeedPreviousLine None |> Error
         | _ -> ParseFailure |> Error
         |> Result.map (fun (level, s) ->
             Heading(level, (ParseLine s), None) |> MDHeading)
     and private ParseLine row =
         ParseHeading row
         <|> Ok(MDText row)
-        |> Result.get
+        |> get
     
     let Parse rows = ()
     ()

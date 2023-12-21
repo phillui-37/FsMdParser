@@ -1,7 +1,7 @@
 namespace FsMdParser.Parse
 
 type ParseError =
-    | NeedNextLine of MDRow
-    | NeedPreviousLine of MDRow
+    | NeedNextLine of MDRow option
+    | NeedPreviousLine of MDRow option
     | ParseFailure
     | NoMoreLines

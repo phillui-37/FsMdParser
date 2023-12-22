@@ -46,7 +46,11 @@ module Lexer =
         | Br (s :: _) -> Ok << MDRow <| DList.singleton(MDLineBreak).Conj(ParseLine s)
         | _ -> Error ParseFailure
     and private ParseEmphasis row =
-        
+        let rec TryParse = function
+            | [] -> Error ParseFailure
+            | pattern :: [] -> MD
+            | pattern :: remain
+            
     and private ParseLine row =
         ParseHeading row
         <|> ParseLineBreak row

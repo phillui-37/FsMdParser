@@ -41,3 +41,7 @@ type String =
     [<Extension>]
     static let (|Prefix|_|) (p: string) (s: string) =
         if s.StartsWith(p) then Some(s.Substring(p.Length)) else None
+    
+    [<Extension>]
+    static let (|Suffix|_|) (p: string) (s: string) =
+            if s.EndsWith p then Some(s.Substring (s.Length - p.Length)) else None

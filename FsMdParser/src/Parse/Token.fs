@@ -63,6 +63,7 @@ and FootNoteRef = { tag: string; text: string}
 and DefinitionList = { terms: DefinitionTerm DList; }
 and DefinitionTerm = { definitions: MDToken DList; }
 and MDToken =
+    | MDRow            of MDToken DList
     | MDText           of string
     | MDHeading        of Heading
     | MDParagraph      of MDToken
@@ -82,5 +83,3 @@ and MDToken =
     | MDHighLight      of string
     | MDSubscript      of string
     | MDSuperscript    of string
-
-type MDRow = MDToken DList

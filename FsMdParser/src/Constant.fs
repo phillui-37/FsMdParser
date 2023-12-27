@@ -29,3 +29,7 @@ module RegexPattern =
     let FENCED_CODEBLOCK       = Regex "^```(\w*?)(?!```)$"
     let CODE                   = Regex "(.*?)(```.*?```|`.*?`)(.*?)"
     let HRULE                  = Regex "^(?:\*{3,}|-{3,}|_{3,})$"
+    let HEADING                = Regex "^(#{1,6}) (.*)$"
+    let MULTI_HEADING_1        = Regex "^={1,}$"
+    let MULTI_HEADING_2        = Regex "^-{1,}$"
+    let LINK                   = Regex "\[(\w+\)]\(.+\)"

@@ -14,12 +14,12 @@ type ListSymbolType =
     | SmallRomanNumber   // ol->i
     | CapitalLetter      // ol->A
     | SmallLetter        // ol->a
-    | Bullet             // ul->disc
-    | Circle             // ul->circle
-    | Square             // ul->square
+    | Dash
+    | Asterisk
+    | Plus
 type TableAlignment = | Left | Middle | Right
 
-type ListLayer = int
+type ListIndent = int
 type Text      = string
 type URL       = string
 type Alt       = string
@@ -32,9 +32,10 @@ type Heading =
 and Emphasis =
     | Bold   of MDToken
     | Italic of MDToken
+and BlockQuote = {layer: int; content: MDToken}
 and List' =
-    | Ordered   of ListLayer * Option<ListSymbolType> * MDToken DList     // multiline will merge as one, a-z/A-Z/0-9
-    | Unordered of ListLayer * Option<ListSymbolType> * UnorderedListItem // must be same char
+    | Ordered   of ListIndent * Option<ListSymbolType> * MDToken DList     // multiline will merge as one, a-z/A-Z/0-9
+    | Unordered of ListIndent * Option<ListSymbolType> * UnorderedListItem // must be same char
 and UnorderedListItem =
     | NormalListItem of MDToken DList
     | CheckListItem  of DList<MDToken * bool> // checked or not
@@ -52,8 +53,8 @@ and Table =
                   alignment: TableAlignment option; |} DList;
       rows: MDTableToken DList }
 and TableEmphasis =
-    | Bold   of string
-    | Italic of string
+    | TBold   of string
+    | TItalic of string
 and MDTableToken =
     | MDTableLink     of Link
     | MDTableCode     of Code
@@ -67,15 +68,15 @@ and MDToken =
     | MDText           of string
     | MDHeading        of Heading
     | MDParagraph      of MDToken
-    | MDLineBreak                   // <br />
+    | MDLineBreak                    // <br />
     | MDEmphasis       of Emphasis
-    | MDBlockQuotes    of MDToken   // multiline block quote will merge as one
+    | MDBlockQuotes    of BlockQuote // multiline block quote will merge as one
     | MDList           of List'
     | MDCode           of Code
     | MDCodeBlock      of CodeBlock
-    | MDHRules                      // <hr />
-    | MDLink           of Link      // http/https/mailto should be automatically detected and converted to Link
-    | MDComment        of string    // syntax: [comment]: #
+    | MDHRules                       // <hr />
+    | MDLink           of Link       // http/https/mailto should be automatically detected and converted to Link
+    | MDComment        of string     // syntax: [comment]: #
     | MDTable          of Table
     | MDFootNote       of FootNote
     | MDDefinitionList of DefinitionList

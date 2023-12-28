@@ -135,19 +135,31 @@ module Lexer =
             Error ParseFailure
     and private ParseLink row =
         let (|Image|_|) = regexAP RegexPattern.IMAGE_LINK (fun ls ->
-            let alt::imageUrl::linkUrl::_ = ls
-            (alt, imageUrl, linkUrl))
+            let prefix::alt::imageUrl::linkUrl::suffix::_ = ls
+            (alt, imageUrl, linkUrl, prefix, suffix))
         let (|TextAlt|_|) = (fun ls ->
-            let text::url::alt::_ = ls
-            (text, url, alt)) |> regexAP RegexPattern.LINK_WITH_ALT
+            let prefix::text::url::alt::suffix::_ = ls
+            (text, url, alt, prefix, suffix)) |> regexAP RegexPattern.LINK_WITH_ALT
         let (|Text|_|) = regexAP RegexPattern.LINK (fun ls ->
-            let text::url::_ = ls
-            (text, url))
-        let (|SimpleHttp|_|) = regexAP RegexPattern.HTTP_URL (List.Pos 0)
-        let (|SimpleEmail|_|) = regexAP RegexPattern.EMAIL_URL (List.Pos 0)
+            let prefix::text::url::suffix::_ = ls
+            (text, url, prefix, suffix))
+        let (|SimpleHttp|_|) = regexAP RegexPattern.HTTP_URL (fun ls ->
+            let prefix::url::suffix::_ = ls
+            let url' =
+                match url with
+                | (Prefix "<" _ & Suffix ">" s) -> s.Substring(1)
+                | s -> s
+            (url', prefix, suffix))
+        let (|SimpleEmail|_|) = regexAP RegexPattern.EMAIL_URL (fun ls ->
+            let prefix::email::suffix::_ = ls
+            let email' =
+                match email with
+                | (Prefix "<" _ & Suffix ">" s) -> s.Substring(1)
+                | s -> s
+            (email', prefix, suffix))
         let (|RefLink|_|) = regexAP RegexPattern.REF_LINK (fun ls ->
-            let text::tag::_ = ls
-            (text, tag))
+            let prefix::text::tag::suffix::_ = ls
+            (text, tag, prefix, suffix))
         let (|RefLinkResolve|_|) src =
             let m = RegexPattern.REF_LINK_RESOLVE.Match src
             if m.Success then
@@ -164,16 +176,35 @@ module Lexer =
                     | s -> Some s))
             else
                 None
+        let mdRowMapper prefix suffix token =
+            DList.singleton(ParseLine prefix)
+            |> DList.conj (MDLink token)
+            |> DList.conj (ParseLine suffix)
+            |> MDRow
+            |> Ok
         match row with
-        | Image (alt, imageUrl, linkUrl) -> ImageLink ({alt=alt;url=imageUrl}, linkUrl) |> Ok
-        | TextAlt (text, url, alt) -> TextLink (text, url, Some alt) |> Ok
-        | Text (text, url) -> TextLink (text, url, None) |> Ok
-        | SimpleHttp url -> SimpleLink url |> Ok
-        | SimpleEmail email -> SimpleLink $"mailto:{email}" |> Ok
-        | RefLink (text, tag) -> RefLink (text, tag) |> Ok
-        | RefLinkResolve (tag, url, maybeTitle) -> RefLinkResolve {tag=tag;url=url;alt=maybeTitle} |> Ok
+        | Image (alt, imageUrl, linkUrl, prefix, suffix) ->
+            ImageLink ({alt=alt;url=imageUrl}, linkUrl)
+            |> mdRowMapper prefix suffix
+        | TextAlt (text, url, alt, prefix, suffix) ->
+            TextLink (text, url, Some alt)
+            |> mdRowMapper prefix suffix
+        | Text (text, url, prefix, suffix) ->
+            TextLink (text, url, None)
+            |> mdRowMapper prefix suffix
+        | SimpleHttp (url, prefix, suffix) ->
+            SimpleLink url
+            |> mdRowMapper prefix suffix
+        | SimpleEmail (email, prefix, suffix) ->
+            SimpleLink $"mailto:{email}"
+            |> mdRowMapper prefix suffix
+        | RefLink (text, tag, prefix, suffix) ->
+            RefLink (text, tag) |> mdRowMapper prefix suffix
+        | RefLinkResolve (tag, url, maybeTitle) ->
+            RefLinkResolve {tag=tag;url=url;alt=maybeTitle}
+            |> MDLink
+            |> Ok
         | _ -> Error ParseFailure
-        |> Result.map MDLink
     and private ParseImage row =
         let (|I|_|) = regexAP RegexPattern.IMAGE (fun ls ->
             (ls[0], ls[1], ls[3]))
@@ -185,8 +216,8 @@ module Lexer =
                 | s -> Some s
             MDImage ({alt=tag;url=url;}, title) |> Ok
         | _ -> Error ParseFailure
-    and private ParseComment row =
-        
+    and private ParseTable row =
+        let m = 
     and private ParseFallback row = // TODO
         MDText row |> Ok
     and private ParseLine row =

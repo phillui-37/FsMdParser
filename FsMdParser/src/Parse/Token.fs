@@ -57,6 +57,7 @@ and TableEmphasis =
     | TBold   of string
     | TItalic of string
 and MDTableToken =
+    | MDTableText     of string
     | MDTableLink     of Link
     | MDTableCode     of Code
     | MDTableEmphasis of TableEmphasis
@@ -78,7 +79,6 @@ and MDToken =
     | MDHRules                       // <hr />
     | MDLink           of Link       // http/https/mailto should be automatically detected and converted to Link
     | MDImage          of Image * string option
-    | MDComment        of string     // syntax: [comment]: #|<>, ref: https://stackoverflow.com/questions/4823468/comments-in-markdown
     | MDTable          of Table
     | MDFootNote       of FootNote
     | MDDefinitionList of DefinitionList

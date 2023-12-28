@@ -49,3 +49,11 @@ type String =
     [<Extension>]
     static let (|Surround|_|) (prefix: string) (suffix: string) (s: string) =
         if s.StartsWith(prefix) && s.EndsWith(suffix) then Some(s.Substring(prefix.Length, s.Length - prefix.Length - suffix.Length)) else None
+
+[<RequireQualifiedAccess>]
+module List =
+    let inline Pos idx (ls: 'a list) = ls[idx]
+
+[<RequireQualifiedAccess>]
+module Map =
+    let inline Pos key (m: Map<'a, 'b>) = m[key]

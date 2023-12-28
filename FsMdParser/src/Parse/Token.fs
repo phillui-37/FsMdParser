@@ -21,8 +21,8 @@ type TableAlignment = | Left | Middle | Right
 
 type ListIndent = int
 type Text      = string
-type URL       = string
 type Alt       = string
+type URL       = string
 type Tag       = string
 type HeadingId = string // for anchor link
 
@@ -40,11 +40,12 @@ and UnorderedListItem =
     | NormalListItem of MDToken DList
     | CheckListItem  of DList<MDToken * bool> // checked or not
 and Link =
-    | SimpleLink of URL         // syntax <URL>, eg <https://google.com>, <test@gmail.com>
-    | TextLink   of Text * URL  // anchor linking also included
-    | ImageLink  of Image * URL // eg badge, syntax [![image alt](image link)](url)
-    | RefLink    of Text * Tag  // tag -> LinkRef, if not valid Ref fallback to normal text
-and LinkRef   = { tag: string; url: string; alt: string option; }
+    | SimpleLink     of URL                     // syntax <URL>, eg <https://google.com>, <test@gmail.com>
+    | TextLink       of Text * URL * Alt option // anchor linking also included
+    | ImageLink      of Image * URL             // eg badge, syntax [![image alt](image link)](url)
+    | RefLink        of Text * Tag              // tag -> LinkRef, if not valid Ref fallback to normal text
+    | RefLinkResolve of LinkRef
+and LinkRef   = { tag: Tag; url: URL; alt: Alt option; }
 and Code      = { content: string; }
 and CodeBlock = { lang: string option; content: string; }
 and Image     = { alt: string; url: string; }
@@ -76,7 +77,8 @@ and MDToken =
     | MDCodeBlock      of CodeBlock
     | MDHRules                       // <hr />
     | MDLink           of Link       // http/https/mailto should be automatically detected and converted to Link
-    | MDComment        of string     // syntax: [comment]: #
+    | MDImage          of Image * string option
+    | MDComment        of string     // syntax: [comment]: #|<>, ref: https://stackoverflow.com/questions/4823468/comments-in-markdown
     | MDTable          of Table
     | MDFootNote       of FootNote
     | MDDefinitionList of DefinitionList

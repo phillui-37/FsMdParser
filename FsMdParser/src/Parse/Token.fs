@@ -52,10 +52,11 @@ and Image     = { alt: string; url: string; }
 and Table =
     { columns: {| header: MDTableToken;
                   alignment: TableAlignment option; |} DList;
-      rows: MDTableToken DList }
+      rows: MDTableToken DList } // 1st pass will all in rows first
 and TableEmphasis =
-    | TBold   of string
-    | TItalic of string
+    | TBold          of string
+    | TItalic        of string
+    | TBoldAndItalic of string
 and MDTableToken =
     | MDTableText     of string
     | MDTableLink     of Link
@@ -80,6 +81,7 @@ and MDToken =
     | MDLink           of Link       // http/https/mailto should be automatically detected and converted to Link
     | MDImage          of Image * string option
     | MDTable          of Table
+    | MDTableSeq       of DList<TableAlignment option>
     | MDFootNote       of FootNote
     | MDDefinitionList of DefinitionList
     | MDStrikethrough  of string

@@ -217,7 +217,23 @@ module Lexer =
             MDImage ({alt=tag;url=url;}, title) |> Ok
         | _ -> Error ParseFailure
     and private ParseTable row =
-        let m = 
+        let sepM = RegexPattern.TABLE_SEP.Match row
+        let tM = RegexPattern.TABLE.Match row
+        if sepM.Success then
+            let cols = seq {
+                for g in sepM.Groups ->
+                    match g.Value with
+                    | Prefix ":" _ & Suffix ":|" _ -> Some Middle
+                    | Prefix ":" _ -> Some Left
+                    | Suffix ":|" _ -> Some Right
+                    | _ -> None
+            }
+            cols |> DList.ofSeq |> MDTableSeq |> Ok
+        else if tM.Success then
+            let cols = [for g in tM.Groups -> g.Value]
+            
+        else
+            Error ParseFailure
     and private ParseFallback row = // TODO
         MDText row |> Ok
     and private ParseLine row =

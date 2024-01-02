@@ -53,15 +53,12 @@ and Table =
     { columns: {| header: MDTableToken;
                   alignment: TableAlignment option; |} DList;
       rows: MDTableToken DList } // 1st pass will all in rows first
-and TableEmphasis =
-    | TBold          of string
-    | TItalic        of string
-    | TBoldAndItalic of string
 and MDTableToken =
     | MDTableText     of string
     | MDTableLink     of Link
     | MDTableCode     of Code
-    | MDTableEmphasis of TableEmphasis
+    | MDTableEmphasis of Emphasis
+    | MDTableRow      of MDTableToken DList
 and FootNote    = { tag: string; }
 and FootNoteRef = { tag: string; text: string}
 and DefinitionList = { terms: DefinitionTerm DList; }

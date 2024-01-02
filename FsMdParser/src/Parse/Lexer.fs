@@ -58,21 +58,22 @@ module Lexer =
         match row with
         | Br (s :: _) -> Ok << MDRow <| DList.singleton(MDLineBreak).Conj(ParseLine s)
         | _ -> Error ParseFailure
-    and private ParseEmphasis row =
-        let rec TryParse src ret: MDToken list =
+    and private ParseEmphasisMeta linePraser emphasisWrapper rowWrapper row =
+        let rec TryParse src ret =
             match src with
             | [] -> []
             | value :: remain ->
                 let (pattern, mapper) = value
                 let newList =
                     match row with
-                    | Surround pattern pattern s -> (MDEmphasis << mapper <| ParseLine s) :: ret
+                    | Surround pattern pattern s -> (emphasisWrapper << mapper <| linePraser s) :: ret
                     | _ -> ret
                 TryParse remain newList
         let result = TryParse [("**", Bold); ("__", Bold); ("*", Italic); ("_", Italic)] []
         match result with
         | [] -> Error ParseFailure
-        | r -> Ok << MDRow <| DList.ofSeq r
+        | r -> Ok << rowWrapper <| DList.ofSeq r
+    and private ParseEmphasis = ParseEmphasisMeta ParseLine MDEmphasis MDRow
     and private ParseBlockQuote row =
         let rec getLayer src accLayer =
             match src with
@@ -133,7 +134,7 @@ module Lexer =
             Ok MDHRules
         else
             Error ParseFailure
-    and private ParseLink row =
+    and private ParseLinkMeta lineParser linkWrapper rowWrapper row  =
         let (|Image|_|) = regexAP RegexPattern.IMAGE_LINK (fun ls ->
             let prefix::alt::imageUrl::linkUrl::suffix::_ = ls
             (alt, imageUrl, linkUrl, prefix, suffix))
@@ -177,10 +178,10 @@ module Lexer =
             else
                 None
         let mdRowMapper prefix suffix token =
-            DList.singleton(ParseLine prefix)
-            |> DList.conj (MDLink token)
-            |> DList.conj (ParseLine suffix)
-            |> MDRow
+            DList.singleton(lineParser prefix)
+            |> DList.conj (linkWrapper token)
+            |> DList.conj (lineParser suffix)
+            |> rowWrapper
             |> Ok
         match row with
         | Image (alt, imageUrl, linkUrl, prefix, suffix) ->
@@ -202,9 +203,10 @@ module Lexer =
             RefLink (text, tag) |> mdRowMapper prefix suffix
         | RefLinkResolve (tag, url, maybeTitle) ->
             RefLinkResolve {tag=tag;url=url;alt=maybeTitle}
-            |> MDLink
+            |> linkWrapper
             |> Ok
         | _ -> Error ParseFailure
+    and private ParseLink = ParseLinkMeta ParseLine MDLink MDRow
     and private ParseImage row =
         let (|I|_|) = regexAP RegexPattern.IMAGE (fun ls ->
             (ls[0], ls[1], ls[3]))
@@ -219,10 +221,32 @@ module Lexer =
     and private ParseTable row =
         let sepM = RegexPattern.TABLE_SEP.Match row
         let tM = RegexPattern.TABLE.Match row
+
+        let rec parseTableContent s =
+            parseTableLink s
+            <|> parseTableCode s
+            <|> parseTableEmphasis s
+            <|> Ok(MDTableText s)
+            |> get
+        and parseTableLink = ParseLinkMeta parseTableContent MDTableLink MDTableRow
+        and parseTableCode s =
+            let (|C|_|) = regexAP RegexPattern.CODE (fun ls ->
+                let prefix::code::suffix::_ = ls
+                (prefix, code, suffix))
+            match s with
+            | C (prefix, code, suffix) ->
+                DList.singleton(parseTableContent prefix)
+                |> DList.conj(MDTableCode {content=code})
+                |> DList.conj(parseTableContent suffix)
+                |> MDTableRow
+                |> Ok
+            | _ -> Error ParseFailure
+        and parseTableEmphasis = ParseEmphasisMeta parseTableContent MDTableEmphasis MDTableRow
+            
         if sepM.Success then
             let cols = seq {
                 for g in sepM.Groups ->
-                    match g.Value with
+                    match String.RemovePrefixSpace(g.Value.Replace(" ", "")) with
                     | Prefix ":" _ & Suffix ":|" _ -> Some Middle
                     | Prefix ":" _ -> Some Left
                     | Suffix ":|" _ -> Some Right
@@ -230,8 +254,17 @@ module Lexer =
             }
             cols |> DList.ofSeq |> MDTableSeq |> Ok
         else if tM.Success then
-            let cols = [for g in tM.Groups -> g.Value]
-            
+            let cols = [
+                for g in tM.Groups ->
+                    g.Value.Replace("|", "")
+                    |> String.RemovePrefixSpace
+                    |> String.RemoveSuffixSpace
+            ]
+            let content =
+                cols.Tail
+                |> Seq.map parseTableContent
+                |> DList.ofSeq
+            MDTable {columns=DList.empty;rows=content} |> Ok
         else
             Error ParseFailure
     and private ParseFallback row = // TODO

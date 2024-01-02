@@ -340,6 +340,7 @@ module Lexer =
 
     // paragraph should be parsed and handled in second pass
     
+    // TODO 2nd pass: paragraph, block quotes, list, code block, table + table seq, footnote ref, def list
 
     // Public
     let Parse rows = ()

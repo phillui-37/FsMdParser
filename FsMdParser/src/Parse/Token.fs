@@ -29,9 +29,9 @@ type HeadingId = string // for anchor link
 type Heading =
     | Heading          of HeadingLevel * MDToken * HeadingId option
     | MultiLineHeading of HeadingLevel * HeadingId option // for =/- line, need to include previous row for handling, 2nd pass will convert to Heading
-and Emphasis =
-    | Bold   of MDToken
-    | Italic of MDToken
+and Emphasis<'a> =
+    | Bold   of 'a
+    | Italic of 'a
 and BlockQuote = {layer: int; content: MDToken}
 and List' =
     | Ordered   of ListIndent * Option<ListSymbolType> * MDToken DList     // multiline will merge as one, a-z/A-Z/0-9
@@ -57,7 +57,7 @@ and MDTableToken =
     | MDTableText     of string
     | MDTableLink     of Link
     | MDTableCode     of Code
-    | MDTableEmphasis of Emphasis
+    | MDTableEmphasis of MDTableToken Emphasis
     | MDTableRow      of MDTableToken DList
 and FootNote    = { tag: string; }
 and FootNoteRef = { tag: string; text: string}
@@ -69,7 +69,7 @@ and MDToken =
     | MDHeading        of Heading
     | MDParagraph      of MDToken
     | MDLineBreak                    // <br />
-    | MDEmphasis       of Emphasis
+    | MDEmphasis       of MDToken Emphasis
     | MDBlockQuotes    of BlockQuote // multiline block quote will merge as one
     | MDList           of List'
     | MDCode           of Code
@@ -80,8 +80,9 @@ and MDToken =
     | MDTable          of Table
     | MDTableSeq       of DList<TableAlignment option>
     | MDFootNote       of FootNote
+    | MDFootNoteRef    of FootNoteRef
     | MDDefinitionList of DefinitionList
-    | MDStrikethrough  of string
-    | MDHighLight      of string
-    | MDSubscript      of string
-    | MDSuperscript    of string
+    | MDStrikethrough  of MDToken
+    | MDHighLight      of MDToken
+    | MDSubscript      of MDToken
+    | MDSuperscript    of MDToken

@@ -24,7 +24,7 @@ module Lexer =
     let private regexAP (pattern: Regex) mapper src =
         let m = pattern.Match src
         if m.Success then
-            [for g in m.Groups -> g.Value].GetSlice(Some 1, None) |> mapper |> Some
+            [for g in m.Groups -> g.Value].Tail |> mapper |> Some
         else
             None
     let rec private ParseHeading row =
@@ -267,6 +267,49 @@ module Lexer =
             MDTable {columns=DList.empty;rows=content} |> Ok
         else
             Error ParseFailure
+    and private ParseFootNote row =
+        match regexAP RegexPattern.FOOTNOTE Funs.id row with
+        | Some (s::_) -> MDFootNote {tag=s} |> Ok
+        | _ -> Error ParseFailure
+    and private ParseFootNoteRef row = // maybe multiline, 2nd pass check
+        let (|FNR|_|) = regexAP RegexPattern.FOOTNOTE_REF (fun ls ->
+            let tag::content::_ = ls
+            (tag, content))
+        match row with
+        | FNR (tag, content) -> MDFootNoteRef {tag=tag;text=content} |> Ok
+        | _ -> Error ParseFailure
+    and private ParseDefinitionList row = // 2nd pass to merge together
+        match row with
+        | Prefix ": " s -> MDDefinitionList {terms=DList.singleton {definitions=ParseLine s |> DList.singleton}} |> Ok
+        | _ -> Error ParseFailure
+    and private ParseStrikethrough row =
+        let (|ST|_|) = regexAP RegexPattern.STRIKETHROUGH (fun ls ->
+            let prefix::s::suffix::_ = ls
+            (ParseLine prefix, ParseLine s, ParseLine suffix))
+        match row with
+        | ST (prefix, s, suffix) -> Ok << MDRow <| DList.singleton(prefix).Conj(MDStrikethrough s).Conj(suffix)
+        | _ -> Error ParseFailure
+    and private ParseHighlight row =
+        let (|HL|_|) = regexAP RegexPattern.HIGHLIGHT (fun ls ->
+            let prefix::s::suffix::_ = ls
+            (ParseLine prefix, ParseLine s, ParseLine suffix))
+        match row with
+        | HL (prefix, s, suffix) -> Ok << MDRow <| DList.singleton(prefix).Conj(MDHighLight s).Conj(suffix)
+        | _ -> Error ParseFailure
+    and private ParseSubscript row =
+        let (|SUB|_|) = regexAP RegexPattern.SUBSCRIPT (fun ls ->
+            let prefix::s::suffix::_ = ls
+            (ParseLine prefix, ParseLine s, ParseLine suffix))
+        match row with
+        | SUB (prefix, s, suffix) -> Ok << MDRow <| DList.singleton(prefix).Conj(MDSubscript s).Conj(suffix)
+        | _ -> Error ParseFailure
+    and private ParseSuperscript row =
+        let (|SUPER|_|) = regexAP RegexPattern.SUPERSCRIPT (fun ls ->
+            let prefix::s::suffix::_ = ls
+            (ParseLine prefix, ParseLine s, ParseLine suffix))
+        match row with
+        | SUPER (prefix, s, suffix) -> Ok << MDRow <| DList.singleton(prefix).Conj(MDSuperscript s).Conj(suffix)
+        | _ -> Error ParseFailure
     and private ParseFallback row = // TODO
         MDText row |> Ok
     and private ParseLine row =
@@ -280,6 +323,13 @@ module Lexer =
             ParseHRule;
             ParseLink;
             ParseImage;
+            ParseTable;
+            ParseFootNoteRef;
+            ParseFootNote;
+            ParseDefinitionList;
+            ParseStrikethrough;
+            ParseSubscript;
+            ParseSuperscript;
 
             ParseFallback;
         |]

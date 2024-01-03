@@ -67,7 +67,7 @@ and MDToken =
     | MDRow            of MDToken DList
     | MDText           of string
     | MDHeading        of Heading
-    | MDParagraph      of MDToken
+    | MDParagraph      of MDToken DList
     | MDLineBreak                    // <br />
     | MDEmphasis       of MDToken Emphasis
     | MDBlockQuotes    of BlockQuote // multiline block quote will merge as one
